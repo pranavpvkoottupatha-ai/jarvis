@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#02060f" />
+<title>JARVIS SWITCH</title>
+<style>
+  :root {
+    --bg: #02060f;
+    --navy: #07142b;
+    --navy-2: #0a1d3d;
+    --cyan: #00e5ff;
+    --blue: #2f7bff;
+    --text: #cfefff;
+    --dim: #6f9cb8;
+    --green: #39ffa0;
+    --amber: #ffc24a;
+    --red: #ff4d6d;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; min-height: 100%; }
+  body {
+    background:
+      radial-gradient(ellipse at 50% -10%, #0b2a55 0%, transparent 55%),
+      radial-gradient(ellipse at 50% 110%, #06204a 0%, transparent 50%),
+      var(--bg);
+    color: var(--text);
+    font-family: "Segoe UI", Roboto, "Noto Sans Malayalam", system-ui, sans-serif;
+    padding: max(16px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom));
+    overflow-x: hidden;
+  }
+  /* faint holographic grid */
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,.05) 1px, transparent 1px);
+    background-size: 42px 42px;
+    mask-image: radial-gradient(circle at 50% 40%, #000 20%, transparent 75%);
+    -webkit-mask-image: radial-gradient(circle at 50% 40%, #000 20%, transparent 75%);
+  }
+  .wrap { position: relative; z-index: 1; max-width: 1000px; margin: 0 auto; }
+
+  /* ---------- Header ---------- */
+  header { text-align: center; margin: 6px 0 14px; }
+  h1 {
+    margin: 0; font-weight: 800; letter-spacing: .28em; font-size: clamp(1.6rem, 7vw, 3rem);
+    color: var(--cyan);
+    text-shadow: 0 0 8px rgba(0,229,255,.8), 0 0 28px rgba(47,123,255,.7);
+    animation: flicker 6s infinite;
+  }
+  .sub { color: var(--dim); letter-spacing: .3em; font-size: .7rem; margin-top: 6px; }
+  @keyframes flicker { 0%,96%,100% {opacity:1} 97% {opacity:.75} 98% {opacity:1} 99% {opacity:.85} }
+
+  /* ---------- Generic holo panel ---------- */
+  .panel {
+    background: linear-gradient(160deg, rgba(10,29,61,.75), rgba(3,10,24,.85));
+    border: 1px solid rgba(0,229,255,.45);
+    border-radius: 14px;
+    box-shadow: 0 0 14px rgba(0,229,255,.18), inset 0 0 22px rgba(47,123,255,.12);
+    padding: 14px;
+    position: relative;
+  }
+  .panel::before, .panel::after {  /* corner brackets */
+    content: ""; position: absolute; width: 14px; height: 14px; border: 2px solid var(--cyan);
+    filter: drop-shadow(0 0 4px var(--cyan));
+  }
+  .panel::before { top: -1px; left: -1px; border-right: 0; border-bottom: 0; border-radius: 14px 0 0 0; }
+  .panel::after { bottom: -1px; right: -1px; border-left: 0; border-top: 0; border-radius: 0 0 14px 0; }
+  .label { font-size: .65rem; letter-spacing: .25em; color: var(--dim); text-transform: uppercase; }
+
+  /* ---------- Status bar ---------- */
+  .statusbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+  .stat .value { margin-top: 6px; font-weight: 700; letter-spacing: .08em; font-size: .95rem; display: flex; align-items: center; gap: 8px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dim); flex: none; }
+  .dot.amber { background: var(--amber); box-shadow: 0 0 10px var(--amber); }
+  .dot.green { background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 1.6s infinite; }
+  .dot.red   { background: var(--red);   box-shadow: 0 0 10px var(--red); }
+  .dot.cyan  { background: var(--cyan);  box-shadow: 0 0 10px var(--cyan); }
+  @keyframes pulse { 50% { transform: scale(1.35); opacity: .6; } }
+
+  select {
+    margin-top: 4px; width: 100%; background: #04112a; color: var(--cyan);
+    border: 1px solid rgba(0,229,255,.5); border-radius: 8px; padding: 8px 10px;
+    font-size: .95rem; letter-spacing: .05em; outline: none;
+  }
+
+  /* ---------- Mic hero ---------- */
+  .hero { display: flex; flex-direction: column; align-items: center; margin: 4px 0 18px; }
+  .mic-stage { position: relative; width: min(78vw, 340px); aspect-ratio: 1; }
+  #wave { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .mic-btn {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 36%; aspect-ratio: 1; border-radius: 50%; cursor: pointer;
+    border: 2px solid var(--cyan);
+    background: radial-gradient(circle at 50% 35%, #0e3a74, #04132b 70%);
+    color: var(--cyan);
+    box-shadow: 0 0 22px rgba(0,229,255,.6), inset 0 0 20px rgba(47,123,255,.5);
+    display: grid; place-items: center; transition: transform .15s, box-shadow .3s, border-color .3s;
+    animation: breathe 3s ease-in-out infinite;
+  }
+  .mic-btn:active { transform: translate(-50%, -50%) scale(.94); }
+  .mic-btn svg { width: 42%; height: 42%; fill: currentColor; filter: drop-shadow(0 0 6px currentColor); }
+  .mic-btn.on {
+    border-color: var(--green); color: var(--green);
+    box-shadow: 0 0 34px rgba(57,255,160,.75), inset 0 0 24px rgba(57,255,160,.35);
+  }
+  @keyframes breathe { 50% { box-shadow: 0 0 36px rgba(0,229,255,.9), inset 0 0 26px rgba(47,123,255,.6); } }
+  .mic-state { margin-top: 8px; font-weight: 700; letter-spacing: .3em; font-size: .9rem; }
+  .mic-state.on { color: var(--green); text-shadow: 0 0 10px var(--green); }
+  .mic-state.off { color: var(--dim); }
+  .hint { color: var(--dim); font-size: .8rem; text-align: center; margin-top: 6px; min-height: 2.4em; max-width: 520px; }
+  .hint.warn { color: var(--amber); }
+  .hint.err { color: var(--red); }
+  .heard { margin-top: 4px; font-size: .9rem; color: var(--cyan); min-height: 1.3em; text-align: center; font-style: italic; }
+
+  /* ---------- Device cards ---------- */
+  .devices { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .device { text-align: center; transition: box-shadow .3s, border-color .3s, transform .3s; }
+  .device .icon { width: 64px; height: 64px; margin: 4px auto 8px; color: var(--dim); transition: color .3s, filter .3s; }
+  .device .icon svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .device .kind { font-size: .65rem; letter-spacing: .3em; color: var(--dim); }
+  .device .name { font-weight: 800; letter-spacing: .12em; font-size: clamp(.95rem, 3.6vw, 1.25rem); margin: 4px 0 8px; }
+  .device .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: .65rem; letter-spacing: .2em;
+    border: 1px solid var(--dim); color: var(--dim);
+  }
+  .device.active { border-color: var(--green); box-shadow: 0 0 26px rgba(57,255,160,.4), inset 0 0 26px rgba(57,255,160,.12); transform: translateY(-2px); }
+  .device.active .icon { color: var(--green); filter: drop-shadow(0 0 10px var(--green)); }
+  .device.active .badge { color: var(--green); border-color: var(--green); box-shadow: 0 0 10px rgba(57,255,160,.5); }
+  .device.active::before, .device.active::after { border-color: var(--green); filter: drop-shadow(0 0 4px var(--green)); }
+
+  /* ---------- Buttons ---------- */
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  .btn {
+    padding: 16px 10px; border-radius: 12px; cursor: pointer; font-weight: 800; letter-spacing: .14em;
+    font-size: clamp(.8rem, 3.2vw, 1rem); color: var(--cyan); background: rgba(0,229,255,.06);
+    border: 1px solid var(--cyan); box-shadow: 0 0 12px rgba(0,229,255,.3), inset 0 0 12px rgba(0,229,255,.1);
+    transition: background .2s, box-shadow .2s, transform .1s;
+  }
+  .btn:hover { background: rgba(0,229,255,.16); box-shadow: 0 0 22px rgba(0,229,255,.6); }
+  .btn:active { transform: scale(.97); }
+  .btn.blue { color: #8db8ff; border-color: var(--blue); box-shadow: 0 0 12px rgba(47,123,255,.4), inset 0 0 12px rgba(47,123,255,.12); }
+  .btn.small { padding: 6px 12px; font-size: .7rem; letter-spacing: .15em; }
+
+  /* ---------- History ---------- */
+  .history-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  #history { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+  #history li {
+    display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; padding: 8px 0;
+    border-bottom: 1px dashed rgba(0,229,255,.2); font-size: .85rem;
+  }
+  #history li:last-child { border-bottom: 0; }
+  #history .time { color: var(--dim); font-variant-numeric: tabular-nums; font-size: .75rem; }
+  #history .src { font-size: .6rem; letter-spacing: .15em; color: var(--blue); border: 1px solid var(--blue); border-radius: 4px; padding: 1px 5px; margin-right: 6px; }
+  #history .src.voice { color: var(--green); border-color: var(--green); }
+  #history .src.unrec { color: var(--amber); border-color: var(--amber); }
+  #history .empty { color: var(--dim); font-style: italic; display: block; }
+
+  .notice { margin-top: 14px; text-align: center; font-size: .72rem; color: var(--dim); letter-spacing: .08em; line-height: 1.5; }
+  .notice b { color: var(--amber); letter-spacing: .2em; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 560px) {
+    .statusbar { grid-template-columns: 1fr; }
+    .devices, .actions { gap: 10px; }
+    .panel { padding: 12px; }
+  }
+  @media (min-width: 900px) {
+    .layout { display: grid; grid-template-columns: 1.1fr 1fr; gap: 18px; align-items: start; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>JARVIS SWITCH</h1>
+    <div class="sub">VOICE DEVICE SWITCHING INTERFACE &middot; V0.1</div>
+  </header>
+
+  <!-- Status row: active device, connection, language -->
+  <section class="statusbar">
+    <div class="panel stat">
+      <div class="label">Active Device</div>
+      <div class="value"><span class="dot green" id="activeDot"></span><span id="activeLabel">REALME 6i</span></div>
+    </div>
+    <div class="panel stat">
+      <div class="label">Connection Status</div>
+      <div class="value"><span class="dot amber"></span><span id="connLabel">DEMO MODE</span></div>
+    </div>
+    <div class="panel stat">
+      <label class="label" for="lang">Language / ഭാഷ</label>
+      <select id="lang" aria-label="Language">
+        <option value="en-IN">English</option>
+        <option value="ml-IN">മലയാളം (Malayalam)</option>
+      </select>
+    </div>
+  </section>
+
+  <div class="layout">
+    <div>
+      <!-- Microphone -->
+      <section class="hero">
+        <div class="mic-stage">
+          <canvas id="wave"></canvas>
+          <button class="mic-btn" id="micBtn" aria-pressed="false" aria-label="Toggle microphone">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+          </button>
+        </div>
+        <div class="mic-state off" id="micState">MIC OFF</div>
+        <div class="heard" id="heard"></div>
+        <div class="hint" id="hint">Tap the microphone, then say &ldquo;JARVIS, switch to phone&rdquo; or &ldquo;JARVIS, switch to tab&rdquo;.</div>
+      </section>
+
+      <!-- Device cards -->
+      <section class="devices">
+        <div class="panel device" id="card-phone">
+          <div class="kind">PHONE</div>
+          <div class="icon"><svg viewBox="0 0 24 24"><rect x="7" y="2.5" width="10" height="19" rx="2.2"/><line x1="10.5" y1="18.5" x2="13.5" y2="18.5"/></svg></div>
+          <div class="name">REALME 6i</div>
+          <span class="badge" id="badge-phone">STANDBY</span>
+        </div>
+        <div class="panel device" id="card-tab">
+          <div class="kind">TABLET</div>
+          <div class="icon"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2.2"/><circle cx="19" cy="12" r=".6"/></svg></div>
+          <div class="name">LENOVO IDEA TAB</div>
+          <span class="badge" id="badge-tab">STANDBY</span>
+        </div>
+      </section>
+
+      <!-- Manual controls -->
+      <section class="actions">
+        <button class="btn" id="btnPhone">SWITCH TO PHONE</button>
+        <button class="btn blue" id="btnTab">SWITCH TO TAB</button>
+      </section>
+    </div>
+
+    <!-- History -->
+    <section class="panel">
+      <div class="history-head">
+        <div class="label">Voice Command History</div>
+        <button class="btn small" id="clearHistory">CLEAR</button>
+      </div>
+      <ul id="history"><li><span class="empty">No commands yet.</span></li></ul>
+    </section>
+  </div>
+
+  <p class="notice">
+    <b>DEMO MODE</b> &mdash; This version only changes the on-screen active device.<br />
+    No real device connection exists yet, and no commands are sent to any other device.
+  </p>
+</div>
+
+<script>
+/* =========================================================
+   JARVIS SWITCH  v0.1  (DEMO MODE)
+   Plain HTML/CSS/JS. No frameworks, no APIs, no keys.
+   Nothing here connects to or controls a real device.
+   ========================================================= */
+
+/* ---------- Device definitions ---------- */
+const DEVICES = {
+  phone: { name: 'REALME 6i',        spokenEn: 'Realme 6i phone',   spokenMl: 'ഫോൺ' },
+  tab:   { name: 'LENOVO IDEA TAB',  spokenEn: 'Lenovo Idea Tab',   spokenMl: 'ടാബ്' }
+};
+
+/* ---------- State ---------- */
+const state = {
+  active: 'phone',        // which device is shown as active (UI only)
+  listening: false,       // does the user want the mic on?
+  recognition: null,      // SpeechRecognition instance
+  speaking: false,        // true while speech synthesis is talking
+  level: 0                // decorative waveform intensity 0..1
+};
+
+/* ---------- Element shortcuts ---------- */
+const $ = id => document.getElementById(id);
+const micBtn = $('micBtn'), micState = $('micState'), hint = $('hint'), heard = $('heard');
+const langSel = $('lang');
+
+/* Browser speech APIs (may be undefined on unsupported browsers) */
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+const synth = window.speechSynthesis;
+
+/* =========================================================
+   UI HELPERS
+   ========================================================= */
+
+/** Show a message under the mic. type: '' | 'warn' | 'err' */
+function setHint(text, type = '') {
+  hint.textContent = text;
+  hint.className = 'hint ' + type;
+}
+
+/** Update every part of the UI that depends on the active device. */
+function renderActive() {
+  const d = state.active;
+  $('activeLabel').textContent = DEVICES[d].name;
+  ['phone', 'tab'].forEach(k => {
+    const on = k === d;
+    $('card-' + k).classList.toggle('active', on);
+    $('badge-' + k).textContent = on ? 'ACTIVE' : 'STANDBY';
+  });
+  try { localStorage.setItem('jarvisSwitchActive', d); } catch (e) { /* storage may be blocked */ }
+}
+
+/** Update the mic button / label to reflect on/off. */
+function renderMic() {
+  micBtn.classList.toggle('on', state.listening);
+  micBtn.setAttribute('aria-pressed', String(state.listening));
+  micState.textContent = state.listening ? 'MIC ON \u2022 LISTENING' : 'MIC OFF';
+  micState.className = 'mic-state ' + (state.listening ? 'on' : 'off');
+}
+
+/* =========================================================
+   COMMAND HISTORY (in-memory + simple localStorage persistence)
+   ========================================================= */
+let history = [];
+try { history = JSON.parse(localStorage.getItem('jarvisSwitchHistory') || '[]'); } catch (e) { history = []; }
+
+/**
+ * Add an entry to the history list.
+ * source: 'manual' | 'voice' | 'unrec' (heard speech that wasn't a command)
+ */
+function addHistory(text, source) {
+  history.unshift({ t: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }), text, source });
+  history = history.slice(0, 30);
+  try { localStorage.setItem('jarvisSwitchHistory', JSON.stringify(history)); } catch (e) {}
+  renderHistory();
+}
+
+/** Rebuild the history list. Uses textContent so spoken text can never inject HTML. */
+function renderHistory() {
+  const ul = $('history');
+  ul.textContent = '';
+  if (!history.length) {
+    const li = document.createElement('li');
+    const s = document.createElement('span'); s.className = 'empty'; s.textContent = 'No commands yet.';
+    li.appendChild(s); ul.appendChild(li); return;
+  }
+  history.forEach(h => {
+    const li = document.createElement('li');
+    const time = document.createElement('span'); time.className = 'time'; time.textContent = h.t;
+    const msg = document.createElement('span');
+    const tag = document.createElement('span');
+    tag.className = 'src ' + (h.source === 'voice' ? 'voice' : h.source === 'unrec' ? 'unrec' : '');
+    tag.textContent = h.source === 'voice' ? 'VOICE' : h.source === 'unrec' ? 'HEARD' : 'MANUAL';
+    msg.appendChild(tag);
+    msg.appendChild(document.createTextNode(h.text));
+    li.appendChild(time); li.appendChild(msg); ul.appendChild(li);
+  });
+}
+
+$('clearHistory').addEventListener('click', () => {
+  history = [];
+  try { localStorage.removeItem('jarvisSwitchHistory'); } catch (e) {}
+  renderHistory();
+});
+
+/* =========================================================
+   SPEECH SYNTHESIS (spoken confirmation)
+   ========================================================= */
+
+/**
+ * Speak a confirmation using the browser's built-in voices.
+ * If Malayalam is selected but the device has no Malayalam voice,
+ * we fall back to an English sentence so the user still hears something.
+ */
+function speak(textEn, textMl) {
+  if (!synth) return;                      // browser has no speech synthesis
+  synth.cancel();                          // stop any previous speech
+  const wantMl = langSel.value === 'ml-IN';
+  const voices = synth.getVoices();
+  const mlVoice = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('ml'));
+  const useMl = wantMl && mlVoice;
+
+  const u = new SpeechSynthesisUtterance(useMl ? textMl : textEn);
+  u.lang = useMl ? 'ml-IN' : 'en-IN';
+  if (useMl) u.voice = mlVoice;
+  u.rate = 1; u.pitch = 0.9;
+  u.onstart = () => { state.speaking = true; };
+  u.onend = u.onerror = () => { state.speaking = false; };
+  synth.speak(u);
+}
+
+/* =========================================================
+   DEVICE SWITCHING (demo only: changes the on-screen state)
+   ========================================================= */
+
+/**
+ * Set the active device in the UI, log it, and speak confirmation.
+ * NOTE: This does NOT contact any real device.
+ */
+function switchTo(device, source, heardText) {
+  state.active = device;
+  renderActive();
+  const d = DEVICES[device];
+  addHistory(heardText ? `"${heardText}" \u2192 ${d.name}` : `Switch to ${d.name}`, source);
+  speak(`Switched to ${d.spokenEn}. Demo mode.`, `${d.spokenMl} ലേക്ക് മാറ്റി. ഡെമോ മോഡ്.`);
+  setHint(`Active device: ${d.name} (demo mode, no real device was contacted).`);
+}
+
+$('btnPhone').addEventListener('click', () => switchTo('phone', 'manual'));
+$('btnTab').addEventListener('click', () => switchTo('tab', 'manual'));
+
+/* =========================================================
+   COMMAND PARSING
+   ========================================================= */
+
+/**
+ * Work out which device a transcript refers to.
+ * Returns 'phone', 'tab', or null (not a switch command / ambiguous).
+ * Works for English words and common Malayalam words (also Latin
+ * transliterations, since recognizers sometimes return those).
+ * The "jarvis" wake word is optional because recognizers often mishear it;
+ * we still require a device word, so random speech rarely triggers a switch.
+ */
+function parseCommand(raw) {
+  const t = raw.toLowerCase().normalize('NFC');
+
+  const phoneWords = ['phone', 'mobile', 'realme', 'real me', 'ഫോൺ', 'ഫോണ്‍', 'ഫോണ', 'മൊബൈൽ', 'മൊബൈല്‍', 'റിയൽമി'];
+  const tabWords   = ['tablet', 'tab', 'lenovo', 'ടാബ്', 'ടാബ', 'ടാബ്\u200cലെറ്റ്', 'ടാബ്ലെറ്റ്', 'ലെനോവോ'];
+
+  // Whole-word matching for short Latin words so "tab" doesn't match "table", etc.
+  const hasWord = (list) => list.some(w => {
+    if (/^[a-z ]+$/.test(w)) return new RegExp('\\b' + w + '\\b').test(t);
+    return t.includes(w); // Malayalam: substring match handles suffixes like ഫോണിലേക്ക്
+  });
+
+  const p = hasWord(phoneWords), b = hasWord(tabWords);
+  if (p && !b) return 'phone';
+  if (b && !p) return 'tab';
+  return null; // neither, or both (ambiguous)
+}
+
+/** Called with each final transcript from speech recognition. */
+function handleTranscript(text) {
+  heard.textContent = '\u201C' + text + '\u201D';
+  const device = parseCommand(text);
+  if (device) {
+    switchTo(device, 'voice', text);
+  } else {
+    addHistory(`"${text}" \u2192 not recognised as a switch command`, 'unrec');
+    setHint('Command not recognised. Try: "JARVIS, switch to phone" or "JARVIS, switch to tab".', 'warn');
+  }
+}
+
+/* =========================================================
+   SPEECH RECOGNITION (Web Speech API)
+   ========================================================= */
+
+/**
+ * Create a recognizer. Called only after the user taps the mic,
+ * so the browser's microphone permission prompt appears at that moment.
+ */
+function createRecognition() {
+  const r = new SpeechRecognitionCtor();
+  r.lang = langSel.value;
+  r.continuous = true;        // keep listening for multiple commands
+  r.interimResults = true;    // show live text while speaking
+  r.maxAlternatives = 3;      // try several guesses for better matching
+
+  r.onresult = (e) => {
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const res = e.results[i];
+      if (!res.isFinal) { heard.textContent = '\u2026' + res[0].transcript; continue; }
+      // Check each alternative; use the first one that is a valid command.
+      let used = null;
+      for (let a = 0; a < res.length; a++) {
+        if (parseCommand(res[a].transcript)) { used = res[a].transcript; break; }
+      }
+      handleTranscript((used || res[0].transcript).trim());
+    }
+  };
+
+  r.onerror = (e) => {
+    switch (e.error) {
+      case 'not-allowed':
+      case 'service-not-allowed':
+        state.listening = false; renderMic();
+        setHint('Microphone permission was denied. Allow microphone access in your browser settings, or use the manual buttons.', 'err');
+        break;
+      case 'no-speech':
+        break; // harmless; onend will restart
+      case 'audio-capture':
+        state.listening = false; renderMic();
+        setHint('No microphone was found on this device. Use the manual buttons instead.', 'err');
+        break;
+      case 'language-not-supported':
+        state.listening = false; renderMic();
+        setHint('This browser does not support speech recognition for the selected language. Try English, or use the manual buttons.', 'err');
+        break;
+      case 'network':
+        state.listening = false; renderMic();
+        setHint('Speech recognition needs an internet connection in this browser. Use the manual buttons meanwhile.', 'err');
+        break;
+      case 'aborted':
+        break;
+      default:
+        setHint('Speech recognition error: ' + e.error, 'err');
+    }
+  };
+
+  // Browsers end recognition after silence; restart while the user wants the mic on.
+  r.onend = () => {
+    if (state.listening) {
+      try { r.start(); } catch (err) { /* already starting */ }
+    }
+  };
+  return r;
+}
+
+/** Turn the microphone on (first call triggers the permission prompt). */
+function startListening() {
+  if (!SpeechRecognitionCtor) {
+    setHint('Speech recognition is not supported in this browser. Please use Chrome on Android, or use the manual SWITCH buttons.', 'err');
+    return;
+  }
+  if (!window.isSecureContext) {
+    setHint('Speech recognition requires HTTPS (GitHub Pages provides this). Use the manual buttons for now.', 'err');
+    return;
+  }
+  state.recognition = createRecognition();
+  state.listening = true;
+  renderMic();
+  setHint('Listening\u2026 say "JARVIS, switch to phone" or "JARVIS, switch to tab".');
+  try { state.recognition.start(); }
+  catch (err) { setHint('Could not start the microphone: ' + err.message, 'err'); state.listening = false; renderMic(); }
+}
+
+/** Turn the microphone off. */
+function stopListening() {
+  state.listening = false;
+  renderMic();
+  heard.textContent = '';
+  if (state.recognition) { try { state.recognition.stop(); } catch (e) {} }
+  setHint('Microphone off. Tap the mic to listen again, or use the manual buttons.');
+}
+
+micBtn.addEventListener('click', () => state.listening ? stopListening() : startListening());
+
+/* Changing language restarts the recognizer with the new language. */
+langSel.addEventListener('change', () => {
+  try { localStorage.setItem('jarvisSwitchLang', langSel.value); } catch (e) {}
+  const ml = langSel.value === 'ml-IN';
+  if (state.listening) { stopListening(); startListening(); }
+  else setHint(ml
+    ? 'ഭാഷ: മലയാളം. Malayalam recognition depends on your browser and device support.'
+    : 'Language: English. Tap the microphone to start.');
+});
+
+/* =========================================================
+   CIRCULAR WAVEFORM (decorative animation)
+   NOTE: This animation is visual only. It reacts to the mic being
+   on/off and to speech output, not to real audio levels, so only
+   one microphone permission request is ever needed.
+   ========================================================= */
+const canvas = $('wave');
+const ctx = canvas.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+
+/** Size the canvas to its container, accounting for high-DPI screens. */
+function resizeCanvas() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  W = rect.width; H = rect.height;
+  canvas.width = W * DPR; canvas.height = H * DPR;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas();
+
+/** Draw one frame of the radial waveform and rotating rings. */
+function draw(ts) {
+  const t = ts / 1000;
+  const cx = W / 2, cy = H / 2;
+  const base = Math.min(W, H) * 0.30;          // radius just outside the mic button
+
+  // Ease the intensity toward a target depending on state.
+  const target = state.listening ? 1 : (state.speaking ? 0.7 : 0.18);
+  state.level += (target - state.level) * 0.06;
+  const lvl = state.level;
+  const color = state.listening ? '57,255,160' : '0,229,255';
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Outer rotating dashed rings
+  ctx.save(); ctx.translate(cx, cy);
+  ctx.strokeStyle = 'rgba(0,229,255,.35)'; ctx.lineWidth = 1;
+  ctx.setLineDash([4, 10]); ctx.rotate(t * 0.25);
+  ctx.beginPath(); ctx.arc(0, 0, Math.min(W, H) * 0.47, 0, Math.PI * 2); ctx.stroke();
+  ctx.setLineDash([18, 8, 2, 8]); ctx.rotate(-t * 0.6);
+  ctx.strokeStyle = 'rgba(47,123,255,.55)';
+  ctx.beginPath(); ctx.arc(0, 0, Math.min(W, H) * 0.43, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+
+  // Radial bars forming the circular waveform
+  const bars = 96;
+  ctx.save(); ctx.translate(cx, cy);
+  ctx.lineCap = 'round'; ctx.lineWidth = Math.max(2, W / 150);
+  ctx.shadowBlur = 10; ctx.shadowColor = `rgba(${color},.9)`;
+  for (let i = 0; i < bars; i++) {
+    const a = (i / bars) * Math.PI * 2;
+    // Layered sines give an organic, voice-like motion
+    const n = Math.sin(a * 6 + t * 3) * 0.5 + Math.sin(a * 11 - t * 4.3) * 0.35 + Math.sin(a * 3 + t * 1.7) * 0.4;
+    const len = (Math.min(W, H) * 0.02) + (Math.abs(n) * Math.min(W, H) * 0.1 * lvl) + lvl * 4;
+    const r1 = base, r2 = base + len;
+    ctx.strokeStyle = `rgba(${color},${0.35 + 0.6 * lvl})`;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+    ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+    ctx.stroke();
+  }
+  // Inner glowing ring
+  ctx.shadowBlur = 16; ctx.lineWidth = 2; ctx.setLineDash([]);
+  ctx.strokeStyle = `rgba(${color},.8)`;
+  ctx.beginPath(); ctx.arc(0, 0, base - 6, 0, Math.PI * 2); ctx.stroke();
+  ctx.restore();
+
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+/* =========================================================
+   INITIALISATION
+   ========================================================= */
+(function init() {
+  // Restore last active device and language (UI convenience only).
+  try {
+    const d = localStorage.getItem('jarvisSwitchActive');
+    if (d === 'phone' || d === 'tab') state.active = d;
+    const l = localStorage.getItem('jarvisSwitchLang');
+    if (l === 'en-IN' || l === 'ml-IN') langSel.value = l;
+  } catch (e) {}
+
+  renderActive();
+  renderMic();
+  renderHistory();
+
+  // Some browsers load voices asynchronously; touching getVoices early helps.
+  if (synth) { synth.getVoices(); synth.onvoiceschanged = () => synth.getVoices(); }
+
+  // Clear message if speech recognition can't work here.
+  if (!SpeechRecognitionCtor) {
+    setHint('Voice recognition is not supported in this browser. Manual switching still works. For voice, try Chrome on Android.', 'warn');
+  }
+})();
+</script>
+</body>
+</html>
